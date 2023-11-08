@@ -11,19 +11,16 @@ const lcjs = require('@arction/lcjs')
 
 const { lightningChart, Themes, emptyLine, AutoCursorModes, AxisTickStrategies, ColorHEX, SolidFill, PointShape } = lcjs
 
+const channelCount = 6
+const dataRateHz = 1000
+const xViewMs = 15 * 1000
+
 fetch(document.head.baseURI + 'examples/assets/0033/ecg.json')
     .then((r) => r.json())
     .then((ecgData) => {
-        const CHANNELS = [
-            { name: 'ECG-1', yMin: -2500, yMax: 2500 },
-            { name: 'ECG-2', yMin: -2500, yMax: 2500 },
-            { name: 'ECG-3', yMin: -2500, yMax: 2500 },
-            { name: 'ECG-4', yMin: -2500, yMax: 2500 },
-            { name: 'ECG-5', yMin: -2500, yMax: 2500 },
-            { name: 'ECG-6', yMin: -2500, yMax: 2500 },
-        ]
-        const X_VIEW_MS = 15 * 1000
+        const CHANNELS = new Array(channelCount).fill(0).map((_, i) => ({ name: `ECG-${i + 1}`, yMin: -2500, yMax: 2500 }))
 
+        // NOTE: Using `Dashboard` is no longer recommended for new applications. Find latest recommendations here: https://lightningchart.com/js-charts/docs/basic-topics/grouping-charts/
         const dashboard = lightningChart()
             .Dashboard({
                 numberOfColumns: 1,
@@ -31,7 +28,6 @@ fetch(document.head.baseURI + 'examples/assets/0033/ecg.json')
                 // theme: Themes.darkGold
             })
             .setSplitterStyle(emptyLine)
-        console.log(dashboard)
         const theme = dashboard.getTheme()
         const ecgBackgroundFill = new SolidFill({
             color: theme.isDark ? ColorHEX('#000000') : ColorHEX('#ffffff'),
@@ -55,7 +51,7 @@ fetch(document.head.baseURI + 'examples/assets/0033/ecg.json')
                 .setTickStrategy(AxisTickStrategies.Empty)
                 .setStrokeStyle(emptyLine)
                 .setScrollStrategy(undefined)
-                .setInterval({ start: 0, end: X_VIEW_MS, stopAxisAfter: false })
+                .setInterval({ start: 0, end: xViewMs, stopAxisAfter: false })
 
             const axisY = chart
                 .getDefaultAxisY()
@@ -74,9 +70,8 @@ fetch(document.head.baseURI + 'examples/assets/0033/ecg.json')
                 .setEffect(false)
 
             // Rectangle for hiding "old" data under incoming "new" data.
-            const seriesOverlayRight = chart
-                .addRectangleSeries()
-                .setEffect(false)
+            const seriesOverlayRight = chart.addRectangleSeries().setEffect(false)
+            const figureOverlayRight = seriesOverlayRight
                 .add({ x1: 0, y1: 0, x2: 0, y2: 0 })
                 .setFillStyle(ecgBackgroundFill)
                 .setStrokeStyle(emptyLine)
@@ -117,6 +112,7 @@ fetch(document.head.baseURI + 'examples/assets/0033/ecg.json')
                 seriesLeft,
                 seriesRight,
                 seriesOverlayRight,
+                figureOverlayRight,
                 seriesHighlightLastPoints,
                 axisX,
                 axisY,
@@ -128,22 +124,21 @@ fetch(document.head.baseURI + 'examples/assets/0033/ecg.json')
         // This example shows how it is possible to implement a performant sweeping line chart, with a little bit of extra application complexity.
         let prevPosX = 0
         // Keep track of data pushed to each channel.
-        const channelsNewDataCache = new Array(CHANNELS.length).fill(0).map((_) => [])
-        const appendDataPoints = (dataPointsAllChannels) => {
+        const handleIncomingData = (dataPointsAllChannels) => {
             // Keep track of the latest X (time position), clamped to the sweeping axis range.
             let posX = 0
 
             for (let iCh = 0; iCh < CHANNELS.length; iCh += 1) {
                 const newDataPointsTimestamped = dataPointsAllChannels[iCh]
-                const newDataCache = channelsNewDataCache[iCh]
                 const channel = channels[iCh]
 
                 // NOTE: Incoming data points are timestamped, meaning their X coordinates can go outside sweeping axis interval.
                 // Clamp timestamps onto the sweeping axis range.
                 const newDataPointsSweeping = newDataPointsTimestamped.map((dp) => ({
-                    x: dp.x % X_VIEW_MS,
+                    x: dp.x % xViewMs,
                     y: dp.y,
                 }))
+                const newDataPointsCount = newDataPointsSweeping.length
 
                 posX = Math.max(posX, newDataPointsSweeping[newDataPointsSweeping.length - 1].x)
 
@@ -164,45 +159,46 @@ fetch(document.head.baseURI + 'examples/assets/0033/ecg.json')
                     // This scenario is triggered when switching tabs or minimizing the example for extended periods of time.
                     channel.seriesRight.clear()
                     channel.seriesLeft.clear()
-                    newDataCache.length = 0
                 } else if (fullSweepsCount === 1) {
                     // Sweeping cycle is completed.
-                    // Copy data of "left" series into the "right" series, clear "left" series.
-
-                    // Categorize new data points into "right" and "left" sides.
-                    const newDataPointsLeft = []
-                    for (const dp of newDataPointsSweeping) {
-                        if (dp.x > prevPosX) {
-                            newDataCache.push(dp)
-                        } else {
-                            newDataPointsLeft.push(dp)
+                    // Categorize new data points into those belonging to current sweep and the next.
+                    let dataCurrentSweep = []
+                    let dataNextSweep = []
+                    for (let i = 0; i < newDataPointsCount; i += 1) {
+                        if (newDataPointsSweeping[i].x <= prevPosX) {
+                            dataCurrentSweep = newDataPointsSweeping.slice(0, i)
+                            dataNextSweep = newDataPointsSweeping.slice(i + 1)
+                            break
                         }
                     }
-                    channel.seriesRight.clear().add(newDataCache)
-                    channel.seriesLeft.clear().add(newDataPointsLeft)
-                    newDataCache.length = 0
-                    newDataCache.push(...newDataPointsLeft)
+                    // Finish current sweep.
+                    channel.seriesLeft.add(dataCurrentSweep)
+                    // Swap left and right series.
+                    const nextLeft = channel.seriesRight
+                    const nextRight = channel.seriesLeft
+                    channel.seriesLeft = nextLeft
+                    channel.seriesRight = nextRight
+                    channel.seriesRight.setDrawOrder({ seriesDrawOrderIndex: 0 })
+                    channel.seriesOverlayRight.setDrawOrder({ seriesDrawOrderIndex: 1 })
+                    channel.seriesLeft.setDrawOrder({ seriesDrawOrderIndex: 2 })
+                    // Start sweeping from left again.
+                    channel.seriesLeft.clear()
+                    channel.seriesLeft.add(dataNextSweep)
                 } else {
                     // Append data to left.
                     channel.seriesLeft.add(newDataPointsSweeping)
-                    // NOTE: While extremely performant, this syntax can crash if called with extremely large arrays (at least 100 000 items).
-                    newDataCache.push(...newDataPointsSweeping)
                 }
 
                 // Highlight last data point.
-                const highlightPoints = [
-                    newDataCache.length > 0
-                        ? newDataCache[newDataCache.length - 1]
-                        : newDataPointsSweeping[newDataPointsSweeping.length - 1],
-                ]
+                const highlightPoints = [newDataPointsSweeping[newDataPointsSweeping.length - 1]]
                 channel.seriesHighlightLastPoints.clear().add(highlightPoints)
             }
 
             // Move overlays of old data to right locations.
             const overlayXStart = 0
-            const overlayXEnd = posX + X_VIEW_MS * 0.03
+            const overlayXEnd = posX + xViewMs * 0.03
             channels.forEach((channel) => {
-                channel.seriesOverlayRight.setDimensions({
+                channel.figureOverlayRight.setDimensions({
                     x1: overlayXStart,
                     x2: overlayXEnd,
                     y1: channel.axisY.getInterval().start,
@@ -216,13 +212,12 @@ fetch(document.head.baseURI + 'examples/assets/0033/ecg.json')
         // Setup example data streaming
         let tStart = window.performance.now()
         let pushedDataCount = 0
-        const dataPointsPerSecond = 1000 // 1000 Hz
-        const xStep = 1000 / dataPointsPerSecond
+        const xStep = 1000 / dataRateHz
         const streamData = () => {
             const tNow = window.performance.now()
             // NOTE: This code is for example purposes only (streaming stable data rate)
             // In real use cases, data should be pushed in when it comes.
-            const shouldBeDataPointsCount = Math.floor((dataPointsPerSecond * (tNow - tStart)) / 1000)
+            const shouldBeDataPointsCount = Math.floor((dataRateHz * (tNow - tStart)) / 1000)
             const newDataPointsCount = shouldBeDataPointsCount - pushedDataCount
             if (newDataPointsCount > 0) {
                 const newDataPoints = []
@@ -235,7 +230,7 @@ fetch(document.head.baseURI + 'examples/assets/0033/ecg.json')
                 }
 
                 // For this examples purposes, stream same data into all channels.
-                appendDataPoints(new Array(CHANNELS.length).fill(0).map((_) => newDataPoints))
+                handleIncomingData(new Array(CHANNELS.length).fill(0).map((_) => newDataPoints))
                 pushedDataCount += newDataPointsCount
             }
 
