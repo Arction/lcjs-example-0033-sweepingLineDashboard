@@ -27,6 +27,28 @@ This example displays 6 ECG channels, each with a 1000 Hz frequency.
 
 Stress testing has concluded that even 100s of such high-frequency channels can be displayed at the same time. To squeeze more GPU performance out, you can try setting line series thickness to -1 for the best performance.
 
+---
+
+A simplified version of sweeping charts can be found in [this example](https://lightningchart.com/js-charts/interactive-examples/examples/lcjs-example-0041-sweepingLineChartNew.html).
+
+These two examples have slightly different approaches to realizing the sweeping display, each having their own advantages and disadvantages:
+
+A) **This example, "sweeping line dashboard"**
+
+-   Extremely performant, recommended for extremely performance demanding applications with 100+ channels and 10+ kHz stream rates.
+
+*   Relatively complicated application code, having to manage multiple series instances per trend and rectangle overlays to hide old data.
+*   Some chart features are not supported, such as: axis ticks, series glow/drop shadow effects, gradient backgrounds.
+
+B) **"sweeping line chart" example**
+
+Found [here](https://lightningchart.com/js-charts/interactive-examples/examples/lcjs-example-0041-sweepingLineChartNew.html)
+
+-   Less performant, works up to 100 channels and 1 kHz stream rate. If less channels can work with higher stream rates too. Just more CPU intensive than the other approach.
+
+*   Very simple to implement and maintain.
+*   No limitations to chart features - axis ticks, cursors, effects, backgrounds all work as normally.
+
 
 ## API Links
 
@@ -43,7 +65,7 @@ Official [API documentation][1] can be found on [LightningChart][2] website.
 
 If the docs and other materials do not solve your problem as well as implementation help is needed, ask on [StackOverflow][3] (tagged lightningchart).
 
-If you think you found a bug in the LightningChart JavaScript library, please contact support@lightningchart.com.
+If you think you found a bug in the LightningChart JavaScript library, please contact sales@lightningchart.com.
 
 Direct developer email support can be purchased through a [Support Plan][4] or by contacting sales@lightningchart.com.
 
@@ -56,7 +78,7 @@ Direct developer email support can be purchased through a [Support Plan][4] or b
 © LightningChart Ltd 2009-2022. All rights reserved.
 
 
-[XY cartesian chart]: https://lightningchart.com/js-charts/api-documentation/v5.0.1/classes/ChartXY.html
-[Line series]: https://lightningchart.com/js-charts/api-documentation/v5.0.1/classes/LineSeries.html
-[Axis]: https://lightningchart.com/js-charts/api-documentation/v5.0.1/classes/Axis.html
+[XY cartesian chart]: https://lightningchart.com/js-charts/api-documentation/v5.1.0/classes/ChartXY.html
+[Line series]: https://lightningchart.com/js-charts/api-documentation/v5.1.0/classes/LineSeries.html
+[Axis]: https://lightningchart.com/js-charts/api-documentation/v5.1.0/classes/Axis.html
 
