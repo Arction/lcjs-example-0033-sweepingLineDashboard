@@ -25,7 +25,7 @@ fetch(document.head.baseURI + 'examples/assets/0033/ecg.json')
             .Dashboard({
                 numberOfColumns: 1,
                 numberOfRows: CHANNELS.length,
-                theme: Themes[new URLSearchParams(window.location.search).get('theme') || 'darkGold'] || undefined,
+                theme: Themes[new URLSearchParams(window.location.search).get('theme') || 'darkGold'] || undefined
             })
             .setSplitterStyle(emptyLine)
         const theme = dashboard.getTheme()
