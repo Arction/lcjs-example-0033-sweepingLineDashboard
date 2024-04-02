@@ -15,7 +15,7 @@ const channelCount = 6
 const dataRateHz = 1000
 const xViewMs = 15 * 1000
 
-fetch(document.head.baseURI + 'examples/assets/0033/ecg.json')
+fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pathname + 'examples/assets/0033/ecg.json')
     .then((r) => r.json())
     .then((ecgData) => {
         const CHANNELS = new Array(channelCount).fill(0).map((_, i) => ({ name: `ECG-${i + 1}`, yMin: -2500, yMax: 2500 }))
