@@ -21,7 +21,9 @@ fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pat
         const CHANNELS = new Array(channelCount).fill(0).map((_, i) => ({ name: `ECG-${i + 1}`, yMin: -2500, yMax: 2500 }))
 
         // NOTE: Using `Dashboard` is no longer recommended for new applications. Find latest recommendations here: https://lightningchart.com/js-charts/docs/basic-topics/grouping-charts/
-        const dashboard = lightningChart()
+        const dashboard = lightningChart({
+            resourcesBaseUrl: new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pathname + 'resources/',
+        })
             .Dashboard({
                 numberOfColumns: 1,
                 numberOfRows: CHANNELS.length,
