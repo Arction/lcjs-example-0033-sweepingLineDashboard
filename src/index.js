@@ -20,59 +20,52 @@ fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pat
     .then((ecgData) => {
         const CHANNELS = new Array(channelCount).fill(0).map((_, i) => ({ name: `ECG-${i + 1}`, yMin: -2500, yMax: 2500 }))
 
-        // NOTE: Using `Dashboard` is no longer recommended for new applications. Find latest recommendations here: https://lightningchart.com/js-charts/docs/basic-topics/grouping-charts/
-        const dashboard = lightningChart({
+        const lc = lightningChart({
             resourcesBaseUrl: new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pathname + 'resources/',
         })
-            .Dashboard({
-                numberOfColumns: 1,
-                numberOfRows: CHANNELS.length,
-                theme: Themes[new URLSearchParams(window.location.search).get('theme') || 'darkGold'] || undefined,
-            })
-            .setSplitterStyle(emptyLine)
-        const theme = dashboard.getTheme()
+        const chart = lc.ChartXY({
+            theme: Themes[new URLSearchParams(window.location.search).get('theme') || 'darkGold'] || undefined,
+        })
+        const theme = chart.getTheme()
         const ecgBackgroundFill = new SolidFill({
             color: theme.isDark ? ColorHEX('#000000') : ColorHEX('#ffffff'),
         })
-
+        chart
+            .setSeriesBackgroundFillStyle(ecgBackgroundFill)
+            .setSeriesBackgroundStrokeStyle(emptyLine)
+            .setMouseInteractions(false)
+            .setAutoCursorMode(AutoCursorModes.disabled)
+            .setTitle(`Sweeping line chart ${CHANNELS.length} channels 1000 Hz`)
+        const axisX = chart
+            .getDefaultAxisX()
+            .setTickStrategy(AxisTickStrategies.Empty)
+            .setStrokeStyle(emptyLine)
+            .setScrollStrategy(undefined)
+            .setInterval({ start: 0, end: xViewMs, stopAxisAfter: false })
+        chart.getDefaultAxisY().dispose()
         const channels = CHANNELS.map((info, iCh) => {
-            const chart = dashboard
-                .createChartXY({
-                    columnIndex: 0,
-                    rowIndex: iCh,
-                })
-                .setTitle(info.name)
-                .setTitlePosition('series-left-top')
-                .setAutoCursorMode(AutoCursorModes.disabled)
-                .setSeriesBackgroundFillStyle(ecgBackgroundFill)
-                .setMouseInteractions(false)
-                .setSeriesBackgroundStrokeStyle(emptyLine)
-
-            const axisX = chart
-                .getDefaultAxisX()
-                .setTickStrategy(AxisTickStrategies.Empty)
-                .setStrokeStyle(emptyLine)
-                .setScrollStrategy(undefined)
-                .setInterval({ start: 0, end: xViewMs, stopAxisAfter: false })
-
             const axisY = chart
-                .getDefaultAxisY()
+                .addAxisY({ iStack: CHANNELS.length - iCh })
                 .setStrokeStyle(emptyLine)
                 .setInterval({ start: info.yMin, end: info.yMax })
                 .setTickStrategy(AxisTickStrategies.Empty)
+                .setTitle(info.name)
+                .setTitleRotation(0)
+                .setMouseInteractions(false)
 
             // Series for displaying "old" data.
             const seriesRight = chart
                 .addLineSeries({
                     dataPattern: { pattern: 'ProgressiveX' },
                     automaticColorIndex: iCh,
+                    yAxis: axisY,
                 })
                 .setName(info.name)
                 .setStrokeStyle((stroke) => stroke.setThickness(2))
                 .setEffect(false)
 
             // Rectangle for hiding "old" data under incoming "new" data.
-            const seriesOverlayRight = chart.addRectangleSeries().setEffect(false)
+            const seriesOverlayRight = chart.addRectangleSeries({ yAxis: axisY }).setEffect(false)
             const figureOverlayRight = seriesOverlayRight
                 .add({ x1: 0, y1: 0, x2: 0, y2: 0 })
                 .setFillStyle(ecgBackgroundFill)
@@ -84,13 +77,14 @@ fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pat
                 .addLineSeries({
                     dataPattern: { pattern: 'ProgressiveX' },
                     automaticColorIndex: iCh,
+                    yAxis: axisY,
                 })
                 .setName(info.name)
                 .setStrokeStyle((stroke) => stroke.setThickness(2))
                 .setEffect(false)
 
             const seriesHighlightLastPoints = chart
-                .addPointSeries({ pointShape: PointShape.Circle })
+                .addPointSeries({ pointShape: PointShape.Circle, yAxis: axisY })
                 .setPointFillStyle(new SolidFill({ color: theme.examples.highlightPointColor }))
                 .setPointSize(5)
                 .setEffect(false)
@@ -110,13 +104,11 @@ fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pat
             })
 
             return {
-                chart,
                 seriesLeft,
                 seriesRight,
                 seriesOverlayRight,
                 figureOverlayRight,
                 seriesHighlightLastPoints,
-                axisX,
                 axisY,
             }
         })
