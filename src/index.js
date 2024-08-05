@@ -7,9 +7,9 @@
  * scrolling axis and some built-in features like real-time axis ticks and glow effects are not applicable.
  */
 
-const lcjs = require('@arction/lcjs')
+const lcjs = require('@lightningchart/lcjs')
 
-const { lightningChart, Themes, emptyLine, AutoCursorModes, AxisTickStrategies, ColorHEX, SolidFill, PointShape } = lcjs
+const { lightningChart, Themes, emptyLine, emptyFill, AxisTickStrategies, ColorHEX, SolidFill, PointShape } = lcjs
 
 const channelCount = 6
 const dataRateHz = 1000
@@ -34,8 +34,8 @@ fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pat
             .setSeriesBackgroundFillStyle(ecgBackgroundFill)
             .setSeriesBackgroundStrokeStyle(emptyLine)
             .setMouseInteractions(false)
-            .setAutoCursorMode(AutoCursorModes.disabled)
             .setTitle(`Sweeping line chart ${CHANNELS.length} channels 1000 Hz`)
+            .setCursorMode(undefined)
         const axisX = chart
             .getDefaultAxisX()
             .setTickStrategy(AxisTickStrategies.Empty)
@@ -55,17 +55,19 @@ fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pat
 
             // Series for displaying "old" data.
             const seriesRight = chart
-                .addLineSeries({
-                    dataPattern: { pattern: 'ProgressiveX' },
+                .addPointLineAreaSeries({
+                    dataPattern: 'ProgressiveX',
                     automaticColorIndex: iCh,
                     yAxis: axisY,
                 })
                 .setName(info.name)
+                .setAreaFillStyle(emptyFill)
                 .setStrokeStyle((stroke) => stroke.setThickness(2))
                 .setEffect(false)
+                .setMaxSampleCount(dataRateHz * xViewMs)
 
             // Rectangle for hiding "old" data under incoming "new" data.
-            const seriesOverlayRight = chart.addRectangleSeries({ yAxis: axisY }).setEffect(false)
+            const seriesOverlayRight = chart.addRectangleSeries({ yAxis: axisY }).setEffect(false).setCursorEnabled(false)
             const figureOverlayRight = seriesOverlayRight
                 .add({ x1: 0, y1: 0, x2: 0, y2: 0 })
                 .setFillStyle(ecgBackgroundFill)
@@ -74,20 +76,23 @@ fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pat
 
             // Series for displaying new data.
             const seriesLeft = chart
-                .addLineSeries({
-                    dataPattern: { pattern: 'ProgressiveX' },
+                .addPointLineAreaSeries({
+                    dataPattern: 'ProgressiveX',
                     automaticColorIndex: iCh,
                     yAxis: axisY,
                 })
                 .setName(info.name)
+                .setAreaFillStyle(emptyFill)
                 .setStrokeStyle((stroke) => stroke.setThickness(2))
                 .setEffect(false)
+                .setMaxSampleCount(dataRateHz * xViewMs)
 
             const seriesHighlightLastPoints = chart
                 .addPointSeries({ pointShape: PointShape.Circle, yAxis: axisY })
                 .setPointFillStyle(new SolidFill({ color: theme.examples.highlightPointColor }))
                 .setPointSize(5)
                 .setEffect(false)
+                .setCursorEnabled(false)
 
             // Synchronize highlighting of "left" and "right" series.
             let isHighlightChanging = false
