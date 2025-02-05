@@ -33,9 +33,9 @@ fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pat
         chart
             .setSeriesBackgroundFillStyle(ecgBackgroundFill)
             .setSeriesBackgroundStrokeStyle(emptyLine)
-            .setMouseInteractions(false)
             .setTitle(`Sweeping line chart ${CHANNELS.length} channels 1000 Hz`)
             .setCursorMode(undefined)
+            .setUserInteractions(undefined)
         const axisX = chart
             .getDefaultAxisX()
             .setTickStrategy(AxisTickStrategies.Empty)
@@ -51,7 +51,6 @@ fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pat
                 .setTickStrategy(AxisTickStrategies.Empty)
                 .setTitle(info.name)
                 .setTitleRotation(0)
-                .setMouseInteractions(false)
 
             // Series for displaying "old" data.
             const seriesRight = chart
@@ -67,12 +66,15 @@ fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pat
                 .setMaxSampleCount(dataRateHz * xViewMs)
 
             // Rectangle for hiding "old" data under incoming "new" data.
-            const seriesOverlayRight = chart.addRectangleSeries({ yAxis: axisY }).setEffect(false).setCursorEnabled(false)
+            const seriesOverlayRight = chart
+                .addRectangleSeries({ yAxis: axisY })
+                .setPointerEvents(false)
+                .setEffect(false)
+                .setCursorEnabled(false)
             const figureOverlayRight = seriesOverlayRight
                 .add({ x1: 0, y1: 0, x2: 0, y2: 0 })
                 .setFillStyle(ecgBackgroundFill)
                 .setStrokeStyle(emptyLine)
-                .setMouseInteractions(false)
 
             // Series for displaying new data.
             const seriesLeft = chart
@@ -88,22 +90,24 @@ fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pat
                 .setMaxSampleCount(dataRateHz * xViewMs)
 
             const seriesHighlightLastPoints = chart
-                .addPointSeries({ pointShape: PointShape.Circle, yAxis: axisY })
+                .addPointLineAreaSeries({ dataPattern: null, yAxis: axisY })
                 .setPointFillStyle(new SolidFill({ color: theme.examples.highlightPointColor }))
                 .setPointSize(5)
+                .setStrokeStyle(emptyLine)
                 .setEffect(false)
                 .setCursorEnabled(false)
 
             // Synchronize highlighting of "left" and "right" series.
             let isHighlightChanging = false
             ;[seriesLeft, seriesRight].forEach((series) => {
-                series.onHighlight((value) => {
+                series.addEventListener('highlightchange', (event) => {
+                    const { highlight } = event
                     if (isHighlightChanging) {
                         return
                     }
                     isHighlightChanging = true
-                    seriesLeft.setHighlight(value)
-                    seriesRight.setHighlight(value)
+                    seriesLeft.setHighlight(highlight)
+                    seriesRight.setHighlight(highlight)
                     isHighlightChanging = false
                 })
             })
